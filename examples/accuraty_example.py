@@ -6,15 +6,23 @@ import torch
 from llmqeval.evaluation.accuracy import Evaluator
 from llmqeval.quantization.model.qwen import quantize_qwen3
 
+
+print("load model.")
 model_id = '/model/ModelScope/Qwen/Qwen3-0.6B'
 model_fp16 = AutoModelForCausalLM.from_pretrained(model_id, 
                                                   torch_dtype=torch.float16,
                                                   device_map="auto")
+tokenizer = AutoTokenizer.from_pretrained(model_id)
 
-tokenizer = AutoModelForCausalLM.from_pretrained(model_id)
+print("load dataset.")
+
 # dataset = load_dataset("lambada", split="validation[:1000]")
+# dataset = load_dataset(path="/root/workspace/data/lambada", split="validation[:1000]")
 dataset = load_dataset("json", data_files="datasets/lambada_validation_data_1k.json", split="train")
+
 evaluator = Evaluator(dataset, tokenizer, "cuda")
+
+print("model evaluate.")
 
 acc_fp16 = evaluator.evaluate(model_fp16)
 print(f"Original model (fp16) accuracy: {acc_fp16}")
