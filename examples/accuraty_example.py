@@ -12,7 +12,8 @@ model_fp16 = AutoModelForCausalLM.from_pretrained(model_id,
                                                   device_map="auto")
 
 tokenizer = AutoModelForCausalLM.from_pretrained(model_id)
-dataset = load_dataset("lambada", split="validation[:1000]")
+# dataset = load_dataset("lambada", split="validation[:1000]")
+dataset = load_dataset("json", data_files="datasets/lambada_validation_data_1k.json", split="train")
 evaluator = Evaluator(dataset, tokenizer, "cuda")
 
 acc_fp16 = evaluator.evaluate(model_fp16)
