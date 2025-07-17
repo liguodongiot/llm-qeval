@@ -1,4 +1,3 @@
-from llmqeval.quantization.kernel import zeropoint_int8, absmax_int8
 from llmqeval.evaluation.perplexity import calculate_perplexity
 from llmqeval.visualization.layer import plot_weight
 from llmqeval.utils.model import generate_text
@@ -31,8 +30,9 @@ end = time.perf_counter()
 exe_time = end - start
 print(f"总执行时间：{exe_time:.6f} 秒")
 
+
 # Generate text with original and quantized models
-original_text = generate_text(model, "简单介绍下千问大模型", max_length=256)
+original_text = generate_text(model, tokenizer,  "简单介绍下千问大模型", max_length=256)
 
 print("-" * 50)
 print(f"原始模型:\n{original_text}")

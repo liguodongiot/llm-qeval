@@ -1,6 +1,9 @@
 
 
-def generate_text(model, input_text, max_length=50):
+
+
+
+def generate_text(model, tokenizer, input_text, max_length=50):
     input_ids = tokenizer.encode(input_text, return_tensors='pt').to("cuda")
     output = model.generate(inputs=input_ids,
                             max_length=max_length,
