@@ -1,7 +1,7 @@
 
 from llmqeval.quantization.absmax import zeropoint_int8, absmax_int8
 from llmqeval.evaluation.perplexity import calculate_perplexity
-from llmqeval.visualization.layer import plot_weight
+from llmqeval.visualization.weight import plot_weight
 from llmqeval.utils.model import generate_text
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
