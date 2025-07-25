@@ -4,3 +4,4 @@ accelerate
 pandas
 sglang
 openai
+pybase64
