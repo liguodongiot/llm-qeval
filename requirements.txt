@@ -2,3 +2,5 @@ modelscope
 transformers
 accelerate
 pandas
+sglang
+openai
