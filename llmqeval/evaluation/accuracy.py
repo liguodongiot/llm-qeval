@@ -25,6 +25,7 @@ class Evaluator:
             input_ids = batch["input_ids"].to(self.device).unsqueeze(0)
             label = input_ids[:, -1]
             outputs = model(input_ids)
+            
             last_token_logits = outputs.logits[:, -2, :]
             pred = last_token_logits.argmax(dim=-1)
             total += label.size(0)

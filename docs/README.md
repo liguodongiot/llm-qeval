@@ -3,6 +3,8 @@
 ```
 pip install evalscope[perf] -U
 
+pip install -U sentence-transformers
+
 ```
 
 

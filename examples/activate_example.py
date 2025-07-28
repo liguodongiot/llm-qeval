@@ -1,4 +1,3 @@
-from llmqeval.evaluation.perplexity import calculate_perplexity
 from llmqeval.visualization.activate import plot_activate
 
 from llmqeval.utils.model import generate_text, add_transformer_layer_hook, \

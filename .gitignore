@@ -211,3 +211,4 @@ __marimo__/
 *.pdf
 .DS_Store
 
+outputs/*.json
