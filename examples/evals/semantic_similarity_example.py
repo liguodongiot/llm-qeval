@@ -4,7 +4,7 @@ from statistics import mean
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-eval_path = "result.json"
+eval_path = "outputs/result.json"
 list_data_dict = json.load(open(eval_path, "r"))
 
 def levenshtein_assistant(list_data_dict, assistant_a, assistant_b, max_text_len=None):

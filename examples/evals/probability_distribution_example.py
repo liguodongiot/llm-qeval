@@ -5,10 +5,8 @@ import json
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import torch.nn.functional as F
+import numpy as np
 
-
-eval_path = "result.json"
-list_data_dict = json.load(open(eval_path, "r"))
 
 model_id = '/model/ModelScope/Qwen/Qwen3-0.6B'
 
@@ -30,44 +28,68 @@ def compute_kl_divergence(text1, text2, model_path="gpt2"):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
     
+    
     # 获取文本的token概率分布
     def get_token_distribution(text):
         inputs = tokenizer(text, return_tensors="pt").to("cuda")
         with torch.no_grad():
             outputs = model(**inputs, labels=inputs["input_ids"])
             logits = outputs.logits
-            
+        
+        epsilon=1e-10
         # 计算每个位置的条件概率
         probs = F.softmax(logits, dim=-1)
-        shifted_probs = probs[:, :-1, :]  # 移除最后一个预测
-        shifted_tokens = inputs.input_ids[:, 1:]  # 对齐实际token
+
+        llm_probs = probs[:, :, :]  # 移除最后一个预测
+        llm_tokens = inputs.input_ids[:, :]  # 对齐实际token
         
-        # 聚合整个文本的分布
-        vocab_probs = torch.zeros(tokenizer.vocab_size)
-        for pos in range(shifted_tokens.shape[1]):
-            token_id = shifted_tokens[0, pos].item()
-            vocab_probs[token_id] += shifted_probs[0, pos, token_id].item()
+        # 初始化词汇表分布（使用对数空间）
+        vocab_log_probs = torch.full((tokenizer.vocab_size,), -1e10)  # 极小值代替负无穷
         
-        # 归一化得到全局分布
-        return vocab_probs / vocab_probs.sum()
-
-    # 获取两个文本的分布
-    P = get_token_distribution(text1)
-    Q = get_token_distribution(text2)
+        # 聚合整个文本的log概率
+        for pos in range(llm_tokens.shape[1]):
+            token_id = llm_tokens[0, pos].item()
+            token_log_prob = llm_probs[0, pos, token_id].item()
+            
+            # 使用logsumexp进行数值稳定的聚合
+            if vocab_log_probs[token_id] < -1e9:  # 第一次出现
+                vocab_log_probs[token_id] = token_log_prob
+            else:
+                # 对数空间的概率聚合
+                vocab_log_probs[token_id] = np.logaddexp(
+                    vocab_log_probs[token_id], token_log_prob
+                )
+        
+        # 转换为概率分布并添加平滑
+        vocab_probs = F.softmax(vocab_log_probs, dim=0).numpy()
+        vocab_probs = (1 - epsilon) * vocab_probs + epsilon / tokenizer.vocab_size
+        
+        # 验证归一化
+        assert abs(vocab_probs.sum() - 1.0) < 1e-5, "概率分布未正确归一化"
+        return vocab_probs
     
-    # 计算KL散度 (P || Q)
-    kl_div = F.kl_div(
-        Q.log().unsqueeze(0), 
-        P.unsqueeze(0), 
-        # reduction='batch_mean',
-        log_target=False
-    )
+    try:
+        # 获取两个文本的分布
+        P = get_token_distribution(text1)
+        Q = get_token_distribution(text2)
+        
+        # 计算KL散度 (P || Q)，避免除零错误
+        kl_div = 0.0
+        for i in range(len(P)):
+            if P[i] > 0 and Q[i] > 0:
+                kl_div += P[i] * (np.log(P[i]) - np.log(Q[i]))
+        
+        return kl_div
     
-    return kl_div.item()
+    except Exception as e:
+        print(f"计算错误: {e}")
+        return float('nan')
 
+text1 = "The quick brown fox jumps over the lazy dog"
+text2 = "A fast auburn fox leaps above a sleepy hound"
+kl_score = compute_kl_divergence(text1, text2, model_id)
 
-text1 = "The quick brown fox"
-text2 = "Jumps over the lazy dog"
-kl_score = compute_kl_divergence(text1, text2, model_path = model_id)
-print(f"KL(P || Q) = {kl_score:.4f}")
-
+if not np.isnan(kl_score):
+    print(f"KL(P || Q) = {kl_score:.4f}")
+else:
+    print("KL散度计算失败，请检查输入文本和模型")
