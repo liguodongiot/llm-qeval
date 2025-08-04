@@ -6,8 +6,14 @@ import torch
 import torch.nn.functional as F
 from scipy.stats import entropy
 
+# 配置全局字体
+plt.rcParams['font.family'] = 'sans-serif'
+plt.rcParams['font.sans-serif'] = 'SimHei'
+plt.rcParams['font.size'] = 12
+
+
 # 设置美观的绘图样式
-sns.set(style="whitegrid", palette="muted", font_scale=1.2)
+sns.set_theme(style="whitegrid", palette="muted", font_scale=1.2)
 plt.rcParams['figure.figsize'] = (12, 8)
 
 def get_token_distribution(text, model_name="gpt2", epsilon=1e-10):
@@ -16,14 +22,15 @@ def get_token_distribution(text, model_name="gpt2", epsilon=1e-10):
     tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(model_name)
     model.eval()
-    
     inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True)
+
     with torch.no_grad():
         outputs = model(**inputs, labels=inputs["input_ids"])
         logits = outputs.logits
     
     # 计算每个位置的条件概率
     log_probs = F.log_softmax(logits, dim=-1)
+
     shifted_log_probs = log_probs[:, :-1, :]
     shifted_tokens = inputs.input_ids[:, 1:]
     
@@ -259,6 +266,7 @@ def visualize_kl_components(P, Q, tokenizer, top_n=15):
 
 # 示例使用
 if __name__ == "__main__":
+
     # 示例文本
     text1 = "The quick brown fox jumps over the lazy dog"
     text2 = "A fast auburn fox leaps above a sleepy hound"
@@ -270,9 +278,11 @@ if __name__ == "__main__":
 
     # 获取分布
     P, tokenizer = get_token_distribution(text1, model_name=model_name)
+
     Q, _ = get_token_distribution(text2, model_name=model_name)
     
     print("可视化1: 分布对比与KL贡献")
+
     visualize_distributions(P, Q, tokenizer, "狐狸与猎犬的文本分布")
     
 

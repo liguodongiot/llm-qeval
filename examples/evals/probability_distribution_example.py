@@ -29,19 +29,23 @@ def compute_kl_divergence(text1, text2, model_path="gpt2"):
     model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
     
     
-    # 获取文本的token概率分布
+    # 获取文本的token概率分布（带平滑）
     def get_token_distribution(text):
-        inputs = tokenizer(text, return_tensors="pt").to("cuda")
+        inputs = tokenizer(text, return_tensors="pt", 
+                           padding=True, truncation=True).to("cuda")
         with torch.no_grad():
             outputs = model(**inputs, labels=inputs["input_ids"])
             logits = outputs.logits
         
         epsilon=1e-10
-        # 计算每个位置的条件概率
-        probs = F.softmax(logits, dim=-1)
+        # # 计算每个位置的条件概率
+        # probs = F.softmax(logits, dim=-1)
 
-        llm_probs = probs[:, :, :]  # 移除最后一个预测
-        llm_tokens = inputs.input_ids[:, :]  # 对齐实际token
+        # 计算每个位置的条件概率（数值稳定方式）
+        probs = F.log_softmax(logits, dim=-1)
+
+        llm_probs = probs[:, :-1, :]  # 移除最后一个预测
+        llm_tokens = inputs.input_ids[:, 1:]  # 对齐实际token
         
         # 初始化词汇表分布（使用对数空间）
         vocab_log_probs = torch.full((tokenizer.vocab_size,), -1e10)  # 极小值代替负无穷
@@ -62,6 +66,7 @@ def compute_kl_divergence(text1, text2, model_path="gpt2"):
         
         # 转换为概率分布并添加平滑
         vocab_probs = F.softmax(vocab_log_probs, dim=0).numpy()
+        # 加性平滑（Additive Smoothing）
         vocab_probs = (1 - epsilon) * vocab_probs + epsilon / tokenizer.vocab_size
         
         # 验证归一化
@@ -86,7 +91,9 @@ def compute_kl_divergence(text1, text2, model_path="gpt2"):
         return float('nan')
 
 text1 = "The quick brown fox jumps over the lazy dog"
-text2 = "A fast auburn fox leaps above a sleepy hound"
+text2 = "The quick brown fox jumps over the lazy dog"
+
+# text2 = "A fast auburn fox leaps above a sleepy hound"
 kl_score = compute_kl_divergence(text1, text2, model_id)
 
 if not np.isnan(kl_score):
